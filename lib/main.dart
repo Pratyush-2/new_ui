@@ -21,16 +21,17 @@ class NutritionApp extends StatelessWidget {
           title: 'Nutrition AI',
           debugShowCheckedModeBanner: false,
           theme: ThemeData(
-            brightness: Brightness.light,
-            primarySwatch: Colors.green,
+            colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
+            useMaterial3: true,
             textTheme: GoogleFonts.interTextTheme(),
-            scaffoldBackgroundColor: Colors.white,
           ),
           darkTheme: ThemeData(
-            brightness: Brightness.dark,
-            primarySwatch: Colors.green,
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: Colors.green,
+              brightness: Brightness.dark,
+            ),
+            useMaterial3: true,
             textTheme: GoogleFonts.interTextTheme(),
-            scaffoldBackgroundColor: Colors.grey[900],
           ),
           themeMode: mode,
           home: const MainTabs(),

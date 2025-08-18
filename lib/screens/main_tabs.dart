@@ -13,10 +13,10 @@ class MainTabs extends StatefulWidget {
 
 class _MainTabsState extends State<MainTabs> {
   int _index = 0;
-  final _pages = const [
-    HomeScreen(),
-    LogFoodScreen(),
-    HistoryScreen(),
+  final _pages = [
+    const HomeScreen(),
+    const LogFoodScreen(),
+    const HistoryScreen(),
     ProfileScreen(),
   ];
 

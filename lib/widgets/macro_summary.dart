@@ -40,7 +40,7 @@ class MacroSummary extends StatelessWidget {
                   children: [
                     CircularProgressIndicator(
                       value: progress,
-                      backgroundColor: Theme.of(context).colorScheme.surfaceVariant,
+                      backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                       color: color,
                       strokeWidth: 6,
                     ),

@@ -3,6 +3,7 @@ import 'home_screen.dart';
 import 'log_food_screen.dart';
 import 'history_screen.dart';
 import 'profile_screen.dart';
+import 'goals_screen.dart';
 
 class MainTabs extends StatefulWidget {
   const MainTabs({super.key});
@@ -17,6 +18,7 @@ class _MainTabsState extends State<MainTabs> {
     const HomeScreen(),
     const LogFoodScreen(),
     const HistoryScreen(),
+    const GoalsScreen(),
     ProfileScreen(),
   ];
 
@@ -32,6 +34,7 @@ class _MainTabsState extends State<MainTabs> {
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
           BottomNavigationBarItem(icon: Icon(Icons.add_box), label: 'Log'),
           BottomNavigationBarItem(icon: Icon(Icons.history), label: 'History'),
+          BottomNavigationBarItem(icon: Icon(Icons.flag), label: 'Goals'),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
         ],
       ),

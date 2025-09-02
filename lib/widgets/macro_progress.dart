@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 class MacroProgress extends StatelessWidget {
   final String title;
-  final int currentValue;
-  final int goalValue;
+  final double currentValue;
+  final double goalValue;
   final Color color;
 
   const MacroProgress({
@@ -26,7 +26,7 @@ class MacroProgress extends StatelessWidget {
         const SizedBox(height: 8),
         LinearProgressIndicator(
           value: progress,
-          backgroundColor: theme.colorScheme.surfaceVariant,
+          backgroundColor: theme.colorScheme.surfaceContainerHighest,
           valueColor: AlwaysStoppedAnimation<Color>(color),
           minHeight: 8,
           borderRadius: BorderRadius.circular(4),

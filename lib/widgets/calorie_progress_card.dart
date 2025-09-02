@@ -1,14 +1,24 @@
 import 'package:flutter/material.dart';
 
 class CalorieProgressCard extends StatelessWidget {
-  const CalorieProgressCard({super.key});
+  final double caloriesConsumed;
+  final double caloriesGoal;
+
+  const CalorieProgressCard({
+    super.key,
+    required this.caloriesConsumed,
+    required this.caloriesGoal,
+  });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final progress = caloriesGoal > 0 ? (caloriesConsumed / caloriesGoal).clamp(0.0, 1.0) : 0.0;
+    final kcalLeft = caloriesGoal - caloriesConsumed;
+
     return Card(
       elevation: 0,
-      color: theme.colorScheme.surfaceVariant.withOpacity(0.5),
+      color: theme.colorScheme.surfaceContainerHighest.withAlpha(128),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(24),
       ),
@@ -31,7 +41,7 @@ class CalorieProgressCard extends StatelessWidget {
                 fit: StackFit.expand,
                 children: [
                   CircularProgressIndicator(
-                    value: 0.7,
+                    value: progress,
                     strokeWidth: 12,
                     backgroundColor: theme.colorScheme.surface,
                     valueColor: AlwaysStoppedAnimation<Color>(
@@ -43,7 +53,7 @@ class CalorieProgressCard extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          "1450",
+                          kcalLeft.toString(),
                           style: theme.textTheme.headlineLarge?.copyWith(
                             fontWeight: FontWeight.bold,
                           ),

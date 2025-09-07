@@ -43,6 +43,15 @@ class ApiService {
     return data.map((f) => Food.fromJson(f as Map<String, dynamic>)).toList();
   }
 
+  Future<List<Food>> searchFood(String foodName) async {
+    print('Searching for food: $foodName');
+    final uri = Uri.parse('$baseUrl/search-food/$foodName');
+    final response = await http.get(uri);
+    final data = _handleResponse(response) as Map<String, dynamic>;
+    final products = data['products'] as List<dynamic>;
+    return products.map((p) => Food.fromOpenFoodFacts(p as Map<String, dynamic>)).toList();
+  }
+
   Future<Map<String, dynamic>> addFood(Map<String, dynamic> foodData) async {
     return createFood(foodData);
   }

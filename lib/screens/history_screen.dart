@@ -24,7 +24,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   void _fetchLogs() {
     final formattedDate = DateFormat('yyyy-MM-dd').format(_selectedDate);
-    _dailyLogsFuture = apiService.getLogs(formattedDate);
+    setState(() {
+      _dailyLogsFuture = apiService.getLogs(formattedDate);
+    });
   }
 
   Future<void> _selectDate(BuildContext context) async {

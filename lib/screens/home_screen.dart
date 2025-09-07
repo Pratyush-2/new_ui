@@ -22,13 +22,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _fetchData();
-  }
-
-  void _fetchData() {
-    setState(() {
-      _homeDataFuture = _getHomeData();
-    });
+    _homeDataFuture = _getHomeData();
   }
 
   Future<Map<String, dynamic>> _getHomeData() async {
@@ -40,6 +34,10 @@ class _HomeScreenState extends State<HomeScreen> {
         apiService.getLogs(today),
         apiService.getProfileById(1), // Assuming user_id 1
       ]);
+      developer.log('Totals: ${results[0]}', name: 'HomeScreen');
+      developer.log('Goals: ${results[1]}', name: 'HomeScreen');
+      developer.log('Logs: ${results[2]}', name: 'HomeScreen');
+      developer.log('Profile: ${results[3]}', name: 'HomeScreen');
       return {
         'totals': results[0],
         'goals': results[1],
@@ -196,7 +194,9 @@ class _HomeScreenState extends State<HomeScreen> {
             MaterialPageRoute(
               builder: (context) => const LogFoodScreen(),
             ),
-          ).then((_) => _fetchData()); // Refetch data when returning to the screen
+          ).then((_) => setState(() {
+            _homeDataFuture = _getHomeData();
+          })); // Refetch data when returning to the screen
         },
         child: const Icon(Icons.add),
       ),

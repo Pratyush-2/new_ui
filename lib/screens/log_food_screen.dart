@@ -2,7 +2,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
-import 'package:nutrition_app/services/api_client.dart';
+import 'package:nutrition_app/main.dart';
+import 'package:nutrition_app/models/food.dart';
 import 'dart:developer' as developer;
 
 class LogFoodScreen extends StatefulWidget {
@@ -22,12 +23,16 @@ class _LogFoodScreenState extends State<LogFoodScreen> {
   final _carbsController = TextEditingController();
   final _fatsController = TextEditingController();
   final _quantityController = TextEditingController();
+  final _searchController = TextEditingController();
 
+  List<Food> _searchResults = [];
   bool _isLoading = false;
+  bool _isSearching = false;
 
   @override
   void initState() {
     super.initState();
+    _searchController.addListener(_onSearchChanged);
   }
 
   @override
@@ -38,7 +43,50 @@ class _LogFoodScreenState extends State<LogFoodScreen> {
     _carbsController.dispose();
     _fatsController.dispose();
     _quantityController.dispose();
+    _searchController.dispose();
     super.dispose();
+  }
+
+  void _onSearchChanged() {
+    if (_searchController.text.isEmpty) {
+      setState(() {
+        _searchResults = [];
+        _isSearching = false;
+      });
+    } else {
+      _performSearch(_searchController.text);
+    }
+  }
+
+  Future<void> _performSearch(String query) async {
+    setState(() {
+      _isSearching = true;
+    });
+    try {
+      final results = await apiService.searchFood(query);
+      setState(() {
+        _searchResults = results;
+      });
+    } catch (e) {
+      developer.log('Error searching food: $e');
+      _showSnackBar('Failed to search food: $e');
+    } finally {
+      setState(() {
+        _isSearching = false;
+      });
+    }
+  }
+
+  void _populateFoodFields(Food food) {
+    _foodNameController.text = food.name;
+    _caloriesController.text = food.calories.toString();
+    _proteinController.text = food.protein.toString();
+    _carbsController.text = food.carbs.toString();
+    _fatsController.text = food.fats.toString();
+    setState(() {
+      _searchResults = []; // Clear search results after selection
+      _searchController.text = ''; // Clear search bar
+    });
   }
 
   Future<void> _pickImage() async {
@@ -63,26 +111,21 @@ class _LogFoodScreenState extends State<LogFoodScreen> {
     });
 
     try {
-      // 1. Create Food Item
-      final foodData = {
-        'name': _foodNameController.text,
-        'calories': double.tryParse(_caloriesController.text) ?? 0.0,
-        'protein': double.tryParse(_proteinController.text) ?? 0.0,
-        'carbs': double.tryParse(_carbsController.text) ?? 0.0,
-        'fats': double.tryParse(_fatsController.text) ?? 0.0,
-      };
-      final createdFood = await apiService.createFood(foodData);
-      developer.log('Created food: $createdFood');
-      final foodId = createdFood['id'];
+      final food = Food(
+        id: 0,
+        name: _foodNameController.text,
+        calories: double.tryParse(_caloriesController.text) ?? 0.0,
+        protein: double.tryParse(_proteinController.text) ?? 0.0,
+        carbs: double.tryParse(_carbsController.text) ?? 0.0,
+        fats: double.tryParse(_fatsController.text) ?? 0.0,
+      );
 
-      if (foodId == null || foodId is! int) {
-        throw Exception('Failed to get a valid food ID from the server.');
-      }
-
-      // 2. Create Daily Log Entry
       final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+      final foodJson = food.toJson();
+      foodJson.remove('id'); // Remove the id before sending
+
       final logData = {
-        'food_id': foodId,
+        'food': foodJson,
         'quantity': double.tryParse(_quantityController.text) ?? 1.0,
         'date': today,
         'user_id': 1, // Assuming user_id 1 for now
@@ -93,13 +136,16 @@ class _LogFoodScreenState extends State<LogFoodScreen> {
         _showSnackBar('Food logged successfully!');
         Navigator.of(context).pop(); // Go back after successful log
       }
-    } catch (e) {
+    } catch (e, s) {
       developer.log('Error logging food: $e');
+      developer.log('Stack trace: $s');
       _showSnackBar('Failed to log food: $e');
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -123,6 +169,36 @@ class _LogFoodScreenState extends State<LogFoodScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              TextField(
+                controller: _searchController,
+                decoration: InputDecoration(
+                  labelText: 'Search Food (e.g., Apple, Chicken Breast)',
+                  border: OutlineInputBorder(),
+                  suffixIcon: _isSearching
+                      ? Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Icon(Icons.search),
+                ),
+              ),
+              if (_searchResults.isNotEmpty)
+                Container(
+                  constraints: BoxConstraints(maxHeight: 200), // Limit height of search results
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: _searchResults.length,
+                    itemBuilder: (context, index) {
+                      final food = _searchResults[index];
+                      return ListTile(
+                        title: Text(food.name),
+                        subtitle: Text('Per ${food.servingSize ?? 'N/A'}'),
+                        onTap: () => _populateFoodFields(food),
+                      );
+                    },
+                  ),
+                ),
+              const SizedBox(height: 16),
               ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
                 onPressed: _pickImage,

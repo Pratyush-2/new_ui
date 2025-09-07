@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:nutrition_app/services/api_client.dart';
+import 'package:nutrition_app/models/goal.dart';
 import 'package:nutrition_app/models/profile.dart';
-import 'dart:developer' as developer;
+import 'package:nutrition_app/screens/create_profile_screen.dart';
+import 'package:nutrition_app/screens/edit_profile_screen.dart';
+import 'package:nutrition_app/services/api_client.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -11,202 +13,161 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  late Future<List<UserProfileModel>> _profilesFuture;
-  late Future<List<dynamic>> _userGoalsFuture;
-  UserProfileModel? _currentProfile;
-  bool _saving = false;
+  late Future<Map<String, dynamic>> _dataFuture;
 
   @override
   void initState() {
     super.initState();
-    _fetchData();
+    _dataFuture = _getData();
   }
 
-  void _fetchData() {
-    _profilesFuture = apiService.getProfiles();
-    _userGoalsFuture = apiService.getAllGoals();
-  }
-
-  void _showSnack(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
-  }
-
-  Future<void> _onEditProfile(UserProfileModel initial) async {
-    final nameCtrl = TextEditingController(text: initial.name);
-    final ageCtrl = TextEditingController(text: initial.age.toString());
-    final heightCtrl = TextEditingController(text: initial.heightCm.toString());
-    final weightCtrl = TextEditingController(text: initial.weightKg.toString());
-    final genderCtrl = TextEditingController(text: initial.gender);
-    final activityCtrl = TextEditingController(text: initial.activityLevel);
-    final goalCtrl = TextEditingController(text: initial.goal ?? '');
-
-    await showDialog(
-      context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          title: const Text('Edit Profile'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Name')),
-                TextField(controller: ageCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Age')),
-                TextField(controller: heightCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Height (cm)')),
-                TextField(controller: weightCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Weight (kg)')),
-                TextField(controller: genderCtrl, decoration: const InputDecoration(labelText: 'Gender')),
-                TextField(controller: activityCtrl, decoration: const InputDecoration(labelText: 'Activity Level')),
-                TextField(controller: goalCtrl, decoration: const InputDecoration(labelText: 'Goal')),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
-            ElevatedButton(
-              onPressed: () async {
-                setState(() => _saving = true);
-                try {
-                  final updatedModel = UserProfileModel(
-                    id: initial.id,
-                    name: nameCtrl.text,
-                    age: double.tryParse(ageCtrl.text) ?? initial.age,
-                    heightCm: double.tryParse(heightCtrl.text) ?? initial.heightCm,
-                    weightKg: double.tryParse(weightCtrl.text) ?? initial.weightKg,
-                    gender: genderCtrl.text,
-                    activityLevel: activityCtrl.text,
-                    goal: goalCtrl.text,
-                  );
-                  final updated = await apiService.updateProfile(updatedModel.toJson());
-                  developer.log('Profile updated: $updated');
-                  _showSnack('Profile saved');
-                  setState(() {
-                    _currentProfile = updatedModel;
-                    _fetchData();
-                  });
-                  if (mounted) Navigator.of(ctx).pop();
-                } catch (e) {
-                  developer.log('Update profile error: $e');
-                  _showSnack('Failed to save profile');
-                } finally {
-                  if (mounted) setState(() => _saving = false);
-                }
-              },
-              child: _saving ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Save'),
-            ),
-          ],
-        );
-      },
-    );
+  Future<Map<String, dynamic>> _getData() async {
+    final profiles = await apiService.getProfiles();
+    final goals = await apiService.getAllGoals();
+    return {
+      'profiles': profiles,
+      'goals': goals,
+    };
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Profile"),
+        title: const Text('Profile'),
       ),
-      body: FutureBuilder<List<dynamic>>(
-        future: Future.wait([_profilesFuture, _userGoalsFuture]),
+      body: FutureBuilder<Map<String, dynamic>>(
+        future: _dataFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           } else if (snapshot.hasError) {
-            return Center(child: Text("Error loading profile"));
+            return Center(child: Text('Error: ${snapshot.error}'));
           } else if (snapshot.hasData) {
-            final profiles = snapshot.data![0] as List<UserProfileModel>;
-            final userGoals = snapshot.data![1] as List<dynamic>;
+            final data = snapshot.data!;
+            final profiles = data['profiles'] as List<UserProfileModel>;
+            final goals = data['goals'] as List<Goal>;
+            final userProfile = profiles.isNotEmpty ? profiles.first : null;
+            final nutritionGoals = goals.isNotEmpty ? goals.first : null;
 
-            final userProfile = (profiles.isNotEmpty ? profiles.first : null);
-            _currentProfile ??= userProfile;
-
-            // Assuming there's at least one goal, or handle empty case
-            final nutritionGoals = userGoals.isNotEmpty ? userGoals[0] : {};
+            if (userProfile == null) {
+              return Center(
+                child: ElevatedButton(
+                  onPressed: () async {
+                    final result = await Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const CreateProfileScreen()),
+                    );
+                    if (result == true) {
+                      setState(() {
+                        _dataFuture = _getData();
+                      });
+                    }
+                  },
+                  child: const Text('Create Profile'),
+                ),
+              );
+            }
 
             return SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(16.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildSectionTitle("Personal Info", theme),
-                  _buildInfoTile("Name", (userProfile?.name ?? 'N/A'), theme),
-                  _buildInfoTile("Age", (userProfile?.age.toString() ?? ''), theme),
-                  _buildInfoTile("Height", (userProfile?.heightCm.toString() ?? ''), theme),
-                  _buildInfoTile("Weight", (userProfile?.weightKg.toString() ?? ''), theme),
-                  _buildInfoTile("Gender", (userProfile?.gender ?? 'N/A'), theme),
-                  _buildInfoTile("Activity Level", (userProfile?.activityLevel ?? 'N/A'), theme),
-                  _buildInfoTile("Goal", (userProfile?.goal ?? 'N/A'), theme),
-
-                  const SizedBox(height: 20),
-                  _buildSectionTitle("Daily Nutrition Goals", theme),
-                  _buildNutritionCard(nutritionGoals, theme),
-                  const SizedBox(height: 20),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: ElevatedButton(
-                      onPressed: userProfile == null ? null : () => _onEditProfile(userProfile),
-                      child: const Text('Edit Profile'),
+                  Card(
+                    elevation: 4,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Personal Info', style: Theme.of(context).textTheme.headlineSmall),
+                          const Divider(),
+                          _buildInfoTile(Icons.person, 'Name', userProfile.name),
+                          _buildInfoTile(Icons.cake, 'Age', userProfile.age.toString()),
+                          _buildInfoTile(Icons.height, 'Height', '${userProfile.heightCm} cm'),
+                          _buildInfoTile(Icons.line_weight, 'Weight', '${userProfile.weightKg} kg'),
+                          _buildInfoTile(Icons.wc, 'Gender', userProfile.gender),
+                          _buildInfoTile(Icons.fitness_center, 'Activity Level', userProfile.activityLevel),
+                          _buildInfoTile(Icons.flag, 'Goal', userProfile.goal ?? 'N/A'),
+                        ],
+                      ),
                     ),
+                  ),
+                  const SizedBox(height: 20),
+                  Card(
+                    elevation: 4,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Daily Nutrition Goals', style: Theme.of(context).textTheme.headlineSmall),
+                          const Divider(),
+                          _buildNutritionCard(nutritionGoals, context),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: () async {
+                      final result = await Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => EditProfileScreen(profile: userProfile),
+                        ),
+                      );
+                      if (result == true) {
+                        setState(() {
+                          _dataFuture = _getData();
+                        });
+                      }
+                    },
+                    child: const Text('Edit Profile'),
                   ),
                 ],
               ),
             );
-          } else {
-            return const Center(child: Text("No profile data available."));
           }
+          return const Center(child: Text('No profile data available.'));
         },
       ),
     );
   }
 
-  Widget _buildSectionTitle(String title, ThemeData theme) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8, top: 16),
-      child: Text(
-        title,
-        style: theme.textTheme.headlineSmall,
-      ),
-    );
-  }
-
-  Widget _buildInfoTile(String label, String value, ThemeData theme) {
+  Widget _buildInfoTile(IconData icon, String label, String value) {
     return ListTile(
-      contentPadding: EdgeInsets.zero,
-      title: Text(label, style: theme.textTheme.titleMedium),
-      subtitle: Text(value, style: theme.textTheme.bodyMedium),
+      leading: Icon(icon, color: Theme.of(context).colorScheme.primary),
+      title: Text(label),
+      subtitle: Text(value, style: Theme.of(context).textTheme.bodyLarge),
     );
   }
 
-  Widget _buildNutritionCard(Map<String, dynamic> nutrition, ThemeData theme) {
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      color: theme.colorScheme.primaryContainer,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            _buildNutritionItem("Calories", "", theme),
-            _buildNutritionItem("Protein", "", theme),
-            _buildNutritionItem("Fats", "", theme),
-            _buildNutritionItem("Carbs", "", theme),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildNutritionItem(String label, String value, ThemeData theme) {
+  Widget _buildNutritionCard(Goal? nutrition, BuildContext context) {
+    if (nutrition == null) {
+      return const Text('No nutrition goals set.');
+    }
     return Column(
       children: [
-        Text(
-          value,
-          style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 4),
-        Text(label, style: theme.textTheme.bodyMedium),
+        _buildNutritionItem('Calories', nutrition.caloriesGoal.toString(), context),
+        _buildNutritionItem('Protein', '${nutrition.proteinGoal} g', context),
+        _buildNutritionItem('Fats', '${nutrition.fatsGoal} g', context),
+        _buildNutritionItem('Carbs', '${nutrition.carbsGoal} g', context),
       ],
+    );
+  }
+
+  Widget _buildNutritionItem(String label, String value, BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: Theme.of(context).textTheme.titleMedium),
+          Text(value, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+        ],
+      ),
     );
   }
 }
